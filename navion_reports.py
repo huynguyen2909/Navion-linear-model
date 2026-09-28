@@ -15,18 +15,20 @@ def plot_response(t, x, model, output_dir):
                r"$\Delta r$ (rad/s)", r"$\Delta\phi$ (rad)"])
     name = "Chuyển động dọc" if longitudinal else "Chuyển động ngang-hướng"
     colors = ["#2563eb", "#16836b", "#dc6b25", "#8056b3"]
-    fig, axes = plt.subplots(4, 1, figsize=(11, 10), sharex=True)
-    fig.suptitle(f"Navion | {name}\nĐáp ứng tự do 0–{t[-1]:g} s · RK4 · Δt = {t[1]-t[0]:g} s", fontsize=14)
+    fig, axes = plt.subplots(4, 1, figsize=(8, 8), sharex=True)
+    fig.suptitle(f"Navion | {name}\nĐáp ứng tự do 0–{t[-1]:g} s · RK4 · Δt = {t[1]-t[0]:g} s", fontsize=16)
     for i, ax in enumerate(axes):
         ax.plot(t, x[:, i], color=colors[i], lw=1.5)
-        ax.set_ylabel(labels[i], fontsize=11)
+        ax.set_ylabel(labels[i], fontsize=14)
         ax.ticklabel_format(axis="y", style="sci", scilimits=(-3, 4), useMathText=True)
+        ax.tick_params(labelsize=12)
+        ax.yaxis.get_offset_text().set_fontsize(12)
         ax.grid(True, alpha=0.25)
         ax.set_xlim(t[0], t[-1])
-    axes[-1].set_xlabel("Thời gian (s)")
-    note = "Hình học theo tài liệu; hệ số hiệu dụng hiệu chỉnh bằng dữ liệu Navion."
-    fig.text(0.5, 0.018, note, ha="center", fontsize=9, color="#555555")
-    fig.tight_layout(rect=(0, 0.035, 1, 0.935))
+    axes[-1].set_xlabel("Thời gian (s)", fontsize=14)
+    note = "Hình học theo tài liệu; hệ số hiệu dụng\nhiệu chỉnh bằng dữ liệu Navion."
+    fig.text(0.5, 0.018, note, ha="center", fontsize=11, color="#555555")
+    fig.tight_layout(rect=(0, 0.065, 1, 0.99))
     for ext in ("svg", "png"):
         fig.savefig(output_dir / f"{model}_response_60s.{ext}", dpi=170)
     plt.close(fig)
@@ -118,3 +120,4 @@ def main(output_dir=OUTPUT_DIR):
 
 if __name__ == "__main__":
     main()
+

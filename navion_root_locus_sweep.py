@@ -106,7 +106,7 @@ def sweep():
 def plot_locus(parameter, model, records, output_dir):
     roots = np.stack([row[2] for row in records])
     unchanged = np.allclose(roots, roots[0], rtol=0, atol=1e-12)
-    fig, ax = plt.subplots(figsize=(10.5, 7))
+    fig, ax = plt.subplots(figsize=(8, 6.8))
     colors = ("#0f766e", "#2563eb", "#e07a19", "#8b5cf6")
     for i, label in enumerate(MODE_LABELS[model]):
         branch = roots[:, i]
@@ -119,22 +119,23 @@ def plot_locus(parameter, model, records, output_dir):
     ax.axvline(0, color="black", lw=0.8, alpha=0.55)
     ax.axhline(0, color="black", lw=0.8, alpha=0.55)
     ax.grid(True, alpha=0.22)
-    ax.set_xlabel(r"$\operatorname{Re}(\lambda)$ (s$^{-1}$)")
-    ax.set_ylabel(r"$\operatorname{Im}(\lambda)$ (s$^{-1}$)")
+    ax.set_xlabel(r"$\operatorname{Re}(\lambda)$ (s$^{-1}$)", fontsize=14)
+    ax.set_ylabel(r"$\operatorname{Im}(\lambda)$ (s$^{-1}$)", fontsize=14)
+    ax.tick_params(labelsize=12)
     channel = "dọc" if model == "longitudinal" else "ngang-hướng"
-    ax.set_title(f"Navion | {channel} | thay đổi {TITLES[parameter]} từ 0 đến +50%")
-    ax.legend(loc="best", fontsize=9, ncol=2)
-    ax.text(0.01, 0.01,
-            "Không đổi trong ma trận của kênh này" if unchanged else
-            "○ Cấu hình chuẩn (0%)     × Bước 10 (+50%)     Mỗi bước +5% so với giá trị chuẩn",
-            transform=ax.transAxes, va="bottom", fontsize=9,
-            bbox=dict(facecolor="white", edgecolor="#dadada", alpha=0.90))
+    ax.set_title(f"Navion | Chuyển động {channel}\nThay đổi {TITLES[parameter]} từ 0 đến +50%", fontsize=16, pad=12)
+    fig.legend(*ax.get_legend_handles_labels(), loc="lower center",
+               bbox_to_anchor=(0.5, 0.09), fontsize=11, ncol=2)
+    fig.text(0.5, 0.018,
+             "Không đổi trong ma trận của kênh này" if unchanged else
+             "○ Cấu hình chuẩn (0%)    × Bước 10 (+50%)\nMỗi bước +5% so với giá trị chuẩn",
+             ha="center", va="bottom", fontsize=11)
     ax.margins(x=0.12, y=0.16)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.20, 1, 1))
     if not unchanged:
         index = 0 if model == "longitudinal" else 3
-        placement = (0.57, 0.54, 0.33, 0.27) if model == "longitudinal" else (0.24, 0.54, 0.34, 0.27)
-        detail = fig.add_axes(placement)
+        placement = (0.56, 0.64, 0.38, 0.25) if model == "longitudinal" else (0.28, 0.64, 0.38, 0.25)
+        detail = ax.inset_axes(placement)
         branch = roots[:, index]
         detail.plot(branch.real, branch.imag, color=colors[index],
                     lw=1.5, marker="o", markersize=3)
@@ -146,10 +147,12 @@ def plot_locus(parameter, model, records, output_dir):
             detail.axvline(0, color="black", lw=0.8, linestyle="--")
             detail.set_ylim(-max(0.002, np.ptp(branch.real) * 0.1),
                             max(0.002, np.ptp(branch.real) * 0.1))
-        detail.set_title("Phóng to: " + MODE_LABELS[model][index], fontsize=9)
-        detail.set_xlabel(r"$\operatorname{Re}(\lambda)$", fontsize=8)
-        detail.set_ylabel(r"$\operatorname{Im}(\lambda)$", fontsize=8)
-        detail.tick_params(labelsize=8)
+        detail.set_title("Phóng to: " + MODE_LABELS[model][index], fontsize=11)
+        detail.set_xlabel(r"$\operatorname{Re}(\lambda)$", fontsize=11)
+        detail.set_ylabel(r"$\operatorname{Im}(\lambda)$", fontsize=11)
+        detail.tick_params(labelsize=10)
+        detail.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(3))
+        detail.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(3))
         detail.grid(alpha=0.25)
         detail.margins(x=0.15, y=0.3)
     stem = f"root_locus_{parameter}_{model}"
@@ -188,3 +191,4 @@ def main(output_dir=OUT_DIR):
 
 if __name__ == "__main__":
     main()
+
