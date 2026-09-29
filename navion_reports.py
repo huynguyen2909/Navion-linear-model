@@ -5,30 +5,51 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from nelson_reference import NELSON_PRINTED_MATRIX, simulate_nelson_response
 from navion_linear_models import simulate_models, spectrum_groups, OUTPUT_DIR
 
-def plot_response(t, x, model, output_dir):
+def plot_response(t, x, x_nelson, model, output_dir):
     longitudinal = model == "longitudinal"
     labels = ([r"$\Delta u$ (ft/s)", r"$\Delta w$ (ft/s)",
                r"$\Delta q$ (rad/s)", r"$\Delta\theta$ (rad)"] if longitudinal else
               [r"$\Delta\beta$ (rad)", r"$\Delta p$ (rad/s)",
                r"$\Delta r$ (rad/s)", r"$\Delta\phi$ (rad)"])
-    name = "Chuyển động dọc" if longitudinal else "Chuyển động ngang-hướng"
+    channel = "dọc" if longitudinal else "ngang-hướng"
     colors = ["#2563eb", "#16836b", "#dc6b25", "#8056b3"]
-    fig, axes = plt.subplots(4, 1, figsize=(8, 8), sharex=True)
-    fig.suptitle(f"Navion | {name}\nĐáp ứng tự do 0–{t[-1]:g} s · RK4 · Δt = {t[1]-t[0]:g} s", fontsize=16)
-    for i, ax in enumerate(axes):
-        ax.plot(t, x[:, i], color=colors[i], lw=1.5)
-        ax.set_ylabel(labels[i], fontsize=14)
-        ax.ticklabel_format(axis="y", style="sci", scilimits=(-3, 4), useMathText=True)
-        ax.tick_params(labelsize=12)
-        ax.yaxis.get_offset_text().set_fontsize(12)
-        ax.grid(True, alpha=0.25)
-        ax.set_xlim(t[0], t[-1])
-    axes[-1].set_xlabel("Thời gian (s)", fontsize=14)
-    note = "Hình học theo tài liệu; hệ số hiệu dụng\nhiệu chỉnh bằng dữ liệu Navion."
-    fig.text(0.5, 0.018, note, ha="center", fontsize=11, color="#555555")
-    fig.tight_layout(rect=(0, 0.065, 1, 0.99))
+    markers = ["s", "o", "^", "*"]
+    fig, ax = plt.subplots(figsize=(8, 8))
+    fig.suptitle(f"Navion | Chuyển động {channel}\nPython và Nelson · Đáp ứng tự do 0–{t[-1]:g} s", fontsize=16)
+    handles = [[], []]
+    marker_step = max(1, int(round(5.0 / (t[1] - t[0]))))
+    for i, (color, marker) in enumerate(zip(colors, markers)):
+        size = 8 if marker == "*" else 6
+        for j, (values, name, style, face, offset) in enumerate([
+            (x, "Python", "-", color, 0),
+            (x_nelson, "Nelson", "--", "white", marker_step // 2),
+        ]):
+            line, = ax.plot(t, values[:, i], color=color, linestyle=style,
+                            lw=1.7 if j == 0 else 1.4, marker=marker,
+                            markersize=size, markerfacecolor=face,
+                            markeredgecolor=color, markeredgewidth=1,
+                            markevery=(offset, marker_step),
+                            label=f"{labels[i]} — {name}")
+            handles[j].append(line)
+    ax.set_ylabel(f"Các biến trạng thái chuyển động {channel}", fontsize=14)
+    ax.set_xlabel("Thời gian (s)", fontsize=14)
+    ax.tick_params(labelsize=12)
+    ax.ticklabel_format(axis="y", style="sci", scilimits=(-3, 4), useMathText=True)
+    ax.yaxis.get_offset_text().set_fontsize(12)
+    ax.grid(True, alpha=0.25)
+    ax.set_xlim(t[0], t[-1])
+    fig.legend(handles=handles[0] + handles[1], loc="lower center",
+               bbox_to_anchor=(0.5, 0.105), ncol=2, fontsize=11,
+               handlelength=3, columnspacing=2.0)
+    page = "158" if longitudinal else "199"
+    note = (f"RK4 · Δt = {t[1]-t[0]:g} s · Cùng x(0) = [0, 0, 0.1, 0]ᵀ\n"
+            f"Nelson (1998), tr. {page}: tính lại từ ma trận A in trong sách.\n"
+            "Giá trị nguyên gốc; đơn vị từng biến ghi trong legend.")
+    fig.text(0.5, 0.02, note, ha="center", fontsize=11, color="#555555")
+    fig.tight_layout(rect=(0, 0.30, 1, 0.99))
     for ext in ("svg", "png"):
         fig.savefig(output_dir / f"{model}_response_60s.{ext}", dpi=170)
     plt.close(fig)
@@ -39,13 +60,6 @@ NELSON_EIGENVALUES = {
     'lateral_directional': {'Dutch roll':complex(-0.487,2.335),'Roll':complex(-8.435,0),'Spiral':complex(-0.00877,0)}
 }
 
-
-NELSON_PRINTED_MATRIX = {
-    'longitudinal':np.array([[-.045,.036,0,-32.2],[-.369,-2.02,176,0],
-                             [.0019,-.0396,-2.948,0],[0,0,1,0]]),
-    'lateral_directional':np.array([[-.254,0,-1,.182],[-16.02,-8.40,2.19,0],
-                                    [4.488,-.350,-.760,0],[0,1,0,0]])
-}
 
 
 def fmt(z):
@@ -112,7 +126,12 @@ def main(output_dir=OUTPUT_DIR):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     for model, result in simulate_models().items():
-        plot_response(result["t"], result["x"], model, output_dir)
+        t_ref, x_ref = simulate_nelson_response(
+            model, result["x"][0], dt=result["t"][1] - result["t"][0],
+            t_end=result["t"][-1])
+        if not np.array_equal(t_ref, result["t"]):
+            raise ValueError("Hai mô hình phải dùng cùng lưới thời gian.")
+        plot_response(result["t"], result["x"], x_ref, model, output_dir)
         write_eigen_report(result["A"], result["parameters"],
                            result["coefficients"], model, output_dir)
     print("Results:", output_dir)
@@ -120,4 +139,3 @@ def main(output_dir=OUTPUT_DIR):
 
 if __name__ == "__main__":
     main()
-
